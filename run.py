@@ -69,17 +69,11 @@ if __name__ == '__main__':
         np.save(os.path.join(save_path, 'result_all.npy'), result_all)
         test_result = train.eval(net, df_test,batch_size=256)
         acc_all.append(test_result['acc'])
-        auc_all.append(test_result['auc'])
         rmse_all.append(test_result['rmse'])
-        recall_all.append(test_result['recall'])
-        precision_all.append(test_result['precision'])
         f1_all.append(test_result['f1'])
 
     print('acc = %.3f ± %.3f'%(np.mean(acc_all),np.std(acc_all)))
-    print('auc = %.3f ± %.3f'%(np.mean(auc_all),np.std(auc_all)))
     print('rmse = %.3f ± %.3f'%(np.mean(rmse_all),np.std(rmse_all)))
-    print('recall = %.3f ± %.3f'%(np.mean(recall_all),np.std(recall_all)))
-    print('precision = %.3f ± %.3f'%(np.mean(precision_all),np.std(precision_all)))
     print('f1 = %.3f ± %.3f'%(np.mean(f1_all),np.std(f1_all)))
 
     with open(os.path.join(save_path, 'cmd.txt'),'w') as fp:

@@ -2,9 +2,9 @@ import gc
 import math
 import numpy as np 
 import pandas as pd 
-from sklearn.metrics import accuracy_score, f1_score,\
-    roc_auc_score, mean_squared_error, \
-    recall_score, precision_score
+from sklearn.metrics import \
+    accuracy_score, f1_score,\
+    mean_squared_error, 
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
@@ -104,15 +104,14 @@ def train(model:IDCD, train_data: pd.DataFrame, valid_data: pd.DataFrame, \
         
         Theta_norm = np.sqrt(np.sum(np.abs(Theta_new-Theta_old)))
         acc = accuracy_score(score_all, pred_all > 0.5)
-        auc = roc_auc_score(score_all, pred_all)
         print('Theta_old.head =',Theta_old[:5,0])
         print('Theta_new.head =',Theta_new[:5,0])
-        print('epoch = %d, theta_norm = %.6f, auc = %.6f, acc = %.6f'%\
-            (epoch, Theta_norm, auc, acc))
+        print('epoch = %d, theta_norm = %.6f, acc = %.6f'%\
+            (epoch, Theta_norm, acc))
         result_epoch['Theta_old_head'] = Theta_old[:5,:5]
         result_epoch['Theta_new_head'] = Theta_new[:5,:5]
         result_epoch['Theta_norm'] = Theta_norm 
-        result_epoch['train_eval'] = {'acc':acc, 'auc':auc}
+        result_epoch['train_eval'] = {'acc':acc}
 
         if valid_data is not None:
             result_epoch['valid_eval'] = eval(model, valid_data, batch_size=16)
@@ -121,15 +120,10 @@ def train(model:IDCD, train_data: pd.DataFrame, valid_data: pd.DataFrame, \
 
 def get_eval_result(s_true, s_pred, s_pred_label):
     acc = accuracy_score(s_true, s_pred_label)
-    recall = recall_score(s_true, s_pred_label) 
-    precision = precision_score(s_true, s_pred_label)
     f1 = f1_score(s_true, s_pred_label)
-    auc = roc_auc_score(s_true, s_pred)
     rmse = np.sqrt(mean_squared_error(s_true, s_pred))
-    print('acc = %.6f auc = %.6f rmse = %.6f'%(acc,auc,rmse))
-    print('recall = %.6f precision = %.6f f1 = %.6f'%(recall, precision, f1))
-    return{'acc': acc,'auc': auc, 'recall': recall, 'precision': precision,\
-        'f1': f1, 'rmse': rmse}
+    print('acc = %.6f f1 = %.6f rmse = %.6f'%(acc,f1,rmse))
+    return{'acc': acc, 'f1': f1, 'rmse': rmse}
 
 
 def eval(model:IDCD, data: pd.DataFrame, batch_size):

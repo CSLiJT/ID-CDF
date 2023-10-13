@@ -54,10 +54,7 @@ if __name__ == '__main__':
         os.makedirs(save_path)
     
     acc_all=[]
-    auc_all = []
     rmse_all=[]
-    recall_all=[]
-    precision_all=[]
     f1_all = []
     for i in range(1):
         net = model.IDCD(n_user, n_item, n_know, user_dim, \

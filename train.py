@@ -2,14 +2,14 @@ import gc
 import math
 import numpy as np 
 import pandas as pd 
-from sklearn.metrics import \
-    accuracy_score, f1_score,\
-    mean_squared_error, 
+from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+
+from model import IDCD
 
 torch.set_default_tensor_type(torch.FloatTensor)
 

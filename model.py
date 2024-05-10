@@ -16,6 +16,20 @@ class IDCD(nn.Module):
         Q_mat: np.array = None, \
         monotonicity_assumption: bool = False,\
         device = torch.device('cpu')):
+        '''
+        Args:
+            n_user:int, the number of learners
+            n_item:int, the number of test items
+            n_know:int, the number of knowledge concepts,
+                which equals to the dimension of diagnostic results.
+            user_dim:int, the dimension of aggregated user representations.
+            item_dim:int, the dimension of aggregated item representations.
+            Q_mat:np.array((n_item,n_know)), the binary Q-matrix.
+            monotonicity_assumption:bool (default False) whether to apply
+                the monotonicity assumption to the diagnostic module. If True,
+                the monotonicity assumption is applied.
+            device:torch.device
+        '''
         super(IDCD,self).__init__()
         self.n_user = n_user 
         self.n_item = n_item 
@@ -96,14 +110,45 @@ class IDCD(nn.Module):
         return y_pred
 
     def diagnose_theta(self, user_log: torch.Tensor):
+        '''
+        Directly diagnose learner cognitive states from their logs.
+        This method is recommended to use after training the model.
+        Args:
+            user_log:torch.Tensor((batch_size, n_items)), the user logs.
+                for each element, -1 = incorrect; 0 = skip; 1 = correct
+        Return:
+            theta:torch.Tensor((batch_size, n_know)), diagnostic results
+                of each learner.
+        '''
         theta = self.f_nn(user_log)
         return theta
 
     def diagnose_psi(self, item_log: torch.Tensor):
+        '''
+        Args:
+            item_log:torch.Tensor((batch_size, n_items)), the user logs.
+                for each element, -1 = incorrect; 0 = skip; 1 = correct
+        Return:
+            psi:torch.Tensor((batch_size, n_know)), diagnostic results
+                of each item.
+        '''
         psi = self.g_nn(item_log)
         return psi
 
     def diagnose_theta_psi(self,  user_log: torch.Tensor, item_log: torch.Tensor):
+        '''
+        For convenience, simultaneously diagnose learners' and items' traits.
+        Args:
+            user_log:torch.Tensor((batch_size, n_items)), the user logs.
+                for each element, -1 = incorrect; 0 = skip; 1 = correct
+            item_log:torch.Tensor((batch_size, n_items)), the user logs.
+                for each element, -1 = incorrect; 0 = skip; 1 = correct
+        Return:
+            theta:torch.Tensor((batch_size, n_know)), diagnostic results
+                of each learner.
+            psi:torch.Tensor((batch_size, n_know)), diagnostic results
+                of each item.
+        '''
         theta = self.diagnose_theta(user_log)
         psi = self.diagnose_psi(item_log)
         return theta, psi
@@ -115,6 +160,18 @@ class IDCD(nn.Module):
         self.Psi_buf[item_id] = psi_new
 
     def predict_response(self, theta, psi, Q_batch):
+        '''
+        Predict response scores given a batch of theta (learners' cognitive states),
+        psi (items' features), and Q-vectors of these items
+        Args:
+            theta:torch.Tensor((batch_size, n_know)), learners' cognitive states
+            psi:torch.Tensor((batch_size, n_know)), items' cognitive states
+            Q_batch:torch.Tensor((batch_size, n_know)), Q-vectors. Q_batch[i] is
+                the Q-vector of the item with feature psi[i]
+        Return:
+            output:torch.Tensor((batch_size,1)), the predicted correct probability
+                of each pair of learner and item.
+        '''
         theta_agg = self.theta_agg_mat(theta * Q_batch)
         psi_agg = self.psi_agg_mat(psi * Q_batch)
         output = self.itf(theta_agg, psi_agg)
@@ -129,6 +186,11 @@ class IDCD(nn.Module):
 
     def forward_using_buf(self, user_id: torch.LongTensor, \
         item_id: torch.LongTensor):
+        ''' 
+        Unlike forward(), this method predict response using thetas
+        and psis from bufferes rather than from outputs of diagnostic modules
+        given response logs.
+        '''
         theta = self.Theta_buf[user_id].squeeze(dim=1)
         psi = self.Psi_buf[item_id].squeeze(dim=1)
         Q_batch = self.Q_mat[item_id].squeeze(dim=1)

@@ -39,13 +39,13 @@ if __name__ == '__main__':
     df_valid = add_knowledge_code(df_valid, Q_mat)
     df_test = add_knowledge_code(df_test, Q_mat)
 
-    itf_type = args.itf_type
+    # itf_type = args.itf_type
     user_dim = int(args.user_dim)
     item_dim = int(args.item_dim)
     batch_size = int(args.batch_size)
     lr = float(args.lr)
     epoch = int(args.epoch)
-    eta = float(args.eta)
+    # eta = float(args.eta)
     device = torch.device(args.device)
     print(device)
 
@@ -58,9 +58,8 @@ if __name__ == '__main__':
     f1_all = []
     for i in range(1):
         net = model.IDCD(n_user, n_item, n_know, user_dim, \
-            item_dim, itf_type, Q_mat = Q_mat, \
-            monotonicity_assumption = True,\
-            eta_s = eta, eta_e = eta, device=device)
+            item_dim, Q_mat = Q_mat, \
+            monotonicity_assumption = True, device=device)
         result_all = train.train(net, df_train, df_valid, batch_size = batch_size, \
             lr = lr, n_epoch = epoch)
         np.save(os.path.join(save_path, 'result_all.npy'), result_all)
@@ -79,6 +78,6 @@ if __name__ == '__main__':
     with open(os.path.join(save_path, 'test_result.json'),'w') as fp:
         json.dump(test_result, fp)
 
-    torch.save(net, os.path.join(save_path, 'params_%s_%s_%s.pt'%(itf_type,user_dim,item_dim)))
+    torch.save(net, os.path.join(save_path, 'params_%s_%s.pt'%(user_dim,item_dim)))
     gc.collect()
     

@@ -14,7 +14,7 @@ class IDCD(nn.Module):
     def __init__(self, n_user: int, n_item: int, n_know: int, \
         user_dim: int, item_dim: int, \
         Q_mat: np.array = None, \
-        monotonicity_assumption: bool = False,\
+        monotonicity_assumption: bool = True,\
         device = torch.device('cpu')):
         '''
         Args:

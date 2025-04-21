@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2025 Jiatong Li
+# All rights reserved.
+# 
+# This software is the confidential and proprietary information
+# of Jiatong Li. You shall not disclose such confidential
+# information and shall use it only in accordance with the terms of
+# the license agreement.
+
+
 from collections import OrderedDict
 import numpy as np
 import pandas as pd 
@@ -202,3 +212,55 @@ class IDCD(nn.Module):
 
     def get_Psi_buf(self):
         return self.Psi_buf.detach().cpu()
+
+# 2025.04.21. Add UAutoRec and CDAE
+class UAutoRec(nn.Module):
+    def __init__(self, n_user: int, n_item: int, \
+        hidden_dim: int, device = torch.device('cpu')):
+        super(UAutoRec, self).__init__()
+        self.n_user = n_user 
+        self.n_item = n_item 
+        self.hidden_dim = hidden_dim 
+        self.device = device 
+        self.f_enc = nn.Linear(n_item, \
+            hidden_dim).to(device)
+        self.f_dec = nn.Linear(hidden_dim, \
+            n_item).to(device)
+
+        for name, param in self.named_parameters():
+            if 'weight' in name:
+                nn.init.xavier_normal_(param)
+    
+    def forward(self, x_input: torch.Tensor, \
+        user_id: torch.LongTensor):
+        h = torch.sigmoid(self.f_enc(x_input))
+        x_output = torch.sigmoid(self.f_dec(h))
+        return x_output
+
+class CDAE(nn.Module):
+    def __init__(self, n_user: int, n_item: int, \
+        hidden_dim: int, device = torch.device('cpu')):
+        super(CDAE, self).__init__()
+        self.n_user = n_user 
+        self.n_item = n_item 
+        self.hidden_dim = hidden_dim 
+        self.device = device 
+        self.f_enc = nn.Linear(n_item, \
+            hidden_dim).to(device)
+        self.user_emb = nn.Embedding(n_user, \
+            n_item).to(device)
+        self.dropout = nn.Dropout(p=0.5).to(device)
+        self.f_dec = nn.Linear(hidden_dim, \
+            n_item).to(device)
+
+        for name, param in self.named_parameters():
+            if 'weight' in name:
+                nn.init.xavier_normal_(param)
+    
+    def forward(self, x_input: torch.Tensor, \
+        user_id: torch.LongTensor):
+        # print(x_input.size(),self.user_emb(user_id).size())
+        h = torch.sigmoid(self.dropout(\
+            self.f_enc(x_input+self.user_emb(user_id).squeeze(dim=1))))
+        x_output = torch.sigmoid(self.f_dec(h))
+        return x_output

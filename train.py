@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2025 Jiatong Li
+# All rights reserved.
+# 
+# This software is the confidential and proprietary information
+# of Jiatong Li. You shall not disclose such confidential
+# information and shall use it only in accordance with the terms of
+# the license agreement.
+
+
 import gc
 import math
 import numpy as np 
@@ -9,7 +19,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from model import IDCD
+from model import IDCD, UAutoRec, CDAE
 
 torch.set_default_tensor_type(torch.FloatTensor)
 
@@ -38,6 +48,29 @@ class IDCDataset(Dataset):
             torch.LongTensor([user_id]), \
             torch.LongTensor([item_id]), \
             torch.FloatTensor([self.score[index]]) \
+    
+    def __len__(self):
+        return self.user_id.shape[0]
+
+# 2025.04.21. Add AEDataset
+class AEDataset(Dataset):
+    def __init__(self, df_log: pd.DataFrame, n_user:int, n_item:int):
+        self.log_mat = np.zeros((n_user, n_item))
+        self.obs_mat = np.zeros((n_user, n_item))
+        self.user_id = np.arange(n_user)
+        self.score = df_log['score'].values
+        pbar = tqdm(total = df_log.shape[0],desc='Loading data')
+        for i, row in df_log.iterrows():
+            self.log_mat[int(row['user_id']), int(row['item_id'])] = row['score']
+            self.obs_mat[int(row['user_id']), int(row['item_id'])] = 1
+            pbar.update(1)
+        pbar.close()
+
+    def __getitem__(self, index):
+        user_id = self.user_id[index]
+        return torch.Tensor(self.log_mat[user_id,:]), \
+            torch.Tensor(self.obs_mat[user_id,:]), \
+            torch.LongTensor([user_id])
     
     def __len__(self):
         return self.user_id.shape[0]
@@ -149,3 +182,62 @@ def eval(model:IDCD, data: pd.DataFrame, batch_size):
     y_plab = (y_pred > 0.5).astype(int)
     eval_result = get_eval_result(y_true, y_pred, y_plab)
     return eval_result
+
+# 2025.04.21. Add train_AE and eval_AE
+def train_AE(model: UAutoRec, train_data:pd.DataFrame, valid_data:pd.DataFrame,\
+    batch_size, lr, n_epoch):
+    loss_func = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr)
+    dataset = AEDataset(train_data, model.n_user, model.n_item)
+    dataloader = DataLoader(dataset = dataset, batch_size = batch_size, shuffle = False)
+
+    model.train()
+    for epoch in range(n_epoch):
+        pbar = tqdm(total = len(dataloader), desc = 'Epoch %d'%epoch)
+        avg_loss = 0
+        count = 0
+        for idx, (log_vec, obs_vec, user_id) in enumerate(dataloader):
+            log_vec = log_vec.to(model.device)
+            obs_vec = obs_vec.to(model.device)
+            user_id = user_id.to(model.device)
+            y_pred = model(log_vec, user_id).reshape(-1,)
+            y_true = log_vec.reshape(-1,)
+            obs = obs_vec.reshape(-1,)
+
+            #loss
+            loss = loss_func(y_pred * obs, y_true * obs)
+
+            # backward
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            avg_loss += loss.item()
+            count += 1
+            pbar.set_postfix({'loss':loss.item()})
+            pbar.update(1)
+        # avg_loss /= count
+        print('Epoch %d done. loss = %.6f'%(epoch, avg_loss))
+        pbar.close()
+        eval_AE(model, dataloader, valid_data)
+
+def eval_AE(model: UAutoRec, train_dataloader: Dataset, test_data: pd.DataFrame):
+    y_pred_mat = []
+    y_pred_all = []
+    y_true_all = []
+    test_dataset = AEDataset(test_data, model.n_user, model.n_item)
+    y_pred_all = []
+    model.eval()
+    with torch.no_grad():
+        for i, (log_vec, obs_vec, user_id) in \
+            enumerate(train_dataloader):
+            log_vec = log_vec.to(model.device)
+            user_id = user_id.to(model.device)
+            y_pred = model(log_vec, user_id).detach().cpu().numpy()
+            y_pred_mat += [elem for elem in y_pred]
+    y_pred_mat = np.stack(y_pred_mat)
+    xs, ys = np.where(test_dataset.obs_mat>0)
+    for i,j in zip(xs,ys):
+        y_pred_all.append(y_pred_mat[i,j])
+        y_true_all.append(test_dataset.log_mat[i,j])
+    y_pred_label = [elem > 0.5 for elem in y_pred_all]
+    return get_eval_result(y_true_all, y_pred_all, y_pred_label)

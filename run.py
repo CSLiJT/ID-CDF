@@ -1,5 +1,13 @@
-#! python3
-# -*- encoding: utf-8 -*-
+# -*- coding: utf-8 -*-
+# Copyright (c) 2025 Jiatong Li
+# All rights reserved.
+# 
+# This software is the confidential and proprietary information
+# of Jiatong Li. You shall not disclose such confidential
+# information and shall use it only in accordance with the terms of
+# the license agreement.
+
+
 
 from model_parser import parse_args
 import gc
